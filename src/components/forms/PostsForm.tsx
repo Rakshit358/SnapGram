@@ -19,16 +19,20 @@ import { PostsValidation } from "@/lib/Validation"
 import { Models } from "appwrite"
 import { useUserContext } from "@/context/authContext"
 import { useToast } from "../ui/use-toast"
-import { useCreatePost } from "@/lib/react-query/queriesAndMutations"
+import { useCreatePost, useUpdatePost } from "@/lib/react-query/queriesAndMutations"
 
 type PostFormProps = {
     post?: Models.Document;
+    action: 'Create' | 'Update';
 }
 
 
-const PostsForm = ({post}: PostFormProps) => {
+const PostsForm = ({post, action}: PostFormProps) => {
   const { mutateAsync: createPost, isPending: isLoadingCreate } =
    useCreatePost();
+   const { mutateAsync: updatePost, isPending: isLoadingUpdate } =
+   useUpdatePost();
+  
    const {user} = useUserContext();
    const {toast} = useToast();
    const  navigate  = useNavigate();
@@ -45,6 +49,22 @@ const PostsForm = ({post}: PostFormProps) => {
  
   // 2. Define a submit handler.
   async function onSubmit(values: z.infer<typeof PostsValidation>) {
+    if(post && action === 'Update'){
+      const updatedPost = await updatePost({
+          ...values,
+          postId: post.$id,
+          imageId: post?.imageId,
+          imageUrl: post?.imageUrl,
+      })
+
+      if(!updatePost){
+        toast({title:"Please try again"})
+      }
+
+      return navigate('/posts/${post.$id}');
+    }
+    
+    
     const newPost = await createPost({
       ...values,
       userId: user.id,
@@ -58,6 +78,7 @@ const PostsForm = ({post}: PostFormProps) => {
      
     navigate('/');
   }
+
   return (
     <Form {...form}>
     <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col gap-9 w-full max-w-5xl">
@@ -76,7 +97,7 @@ const PostsForm = ({post}: PostFormProps) => {
       />
       <FormField
         control={form.control}
-        name="photos"
+        name="file"
         render={({ field }) => (
           <FormItem>
             <FormLabel className="shad-form_label">Add Photos</FormLabel>
